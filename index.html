@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WISH // 必買收納 中樞系統</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Inter:wght@300;400&family=Syncopate:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { --bg-color: #FFF5F7; --card-bg: #FFFFFF; --text-main: #594A4E; --text-mute: #B89F9F; --accent: #FF8DA1; --border-light: rgba(255, 141, 161, 0.3); --font-display: 'Syncopate', sans-serif; --font-body: 'Inter', sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        /* 跨裝置視覺錨點 */
+        body { background-color: #EFEFEF; color: var(--text-main); font-family: var(--font-body); font-weight: 300; height: 100vh; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+        
+        /* 應用程式容器 */
+        .app-wrapper { width: 100%; max-width: 480px; height: 100vh; background-color: var(--bg-color); display: flex; flex-direction: column; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.08); overflow: hidden; }
+        @media (min-width: 768px) { .app-wrapper { height: 90vh; max-height: 850px; border-radius: 20px; } }
+
+        .header { padding: 20px; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid var(--border-light); flex-shrink: 0; background: var(--bg-color); z-index: 10; }
+        .header h1 { font-family: var(--font-display); font-size: 0.9rem; letter-spacing: 3px; color: var(--text-mute); }
+        .header h1 span { color: var(--accent); }
+
+        .view-container { flex-grow: 1; overflow-y: auto; padding: 20px; padding-bottom: 90px; display: none; scroll-behavior: smooth; }
+        .view-container.active { display: block; }
+        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 10px; }
+
+        .nav-bar { position: absolute; bottom: 0; left: 0; width: 100%; height: 65px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); display: flex; border-top: 1px solid var(--border-light); z-index: 1000; }
+        .nav-btn { flex: 1; border: none; background: transparent; color: var(--text-mute); font-family: var(--font-display); font-size: 0.65rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: 0.3s; }
+        .nav-btn.active { color: var(--accent); font-weight: bold; transform: translateY(-2px); }
+
+        .item-card { background: var(--card-bg); border: 1px solid var(--border-light); border-radius: 12px; padding: 15px; margin-bottom: 15px; position: relative; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.02); transition: 0.3s; }
+        .sys-input, .sys-select { background: transparent; border: none; border-bottom: 1px solid var(--border-light); color: var(--text-main); padding: 6px 2px; font-size: 0.9rem; outline: none; width: 100%; transition: 0.3s; }
+        .sys-input:focus { border-bottom-color: var(--accent); }
+        .title-input { font-size: 1.1rem; color: var(--accent); }
+
+        .settings-sec { margin-bottom: 25px; background: rgba(255,255,255,0.7); padding: 15px; border-radius: 12px; border: 1px solid var(--border-light); }
+        .settings-title { font-family: var(--font-display); font-size: 0.75rem; color: var(--accent); margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .settings-title button { border: 1px solid var(--accent); background: transparent; color: var(--accent); width: 24px; height: 24px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+        .settings-title button:hover { background: var(--accent); color: #fff; }
+        
+        .tag-pill { display: inline-block; padding: 6px 12px; border: 1px solid var(--border-light); border-radius: 20px; font-size: 0.75rem; margin-right: 6px; margin-bottom: 6px; color: var(--text-mute); cursor: pointer; transition: 0.3s; }
+        .tag-pill.selected { background: var(--accent); color: white; border-color: var(--accent); }
+
+        .img-box { width: 70px; height: 70px; border: 1px dashed var(--border-light); border-radius: 8px; flex-shrink: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; font-size: 0.55rem; color: var(--text-mute); cursor: pointer; background: #fafafa; }
+        .img-box img { width: 100%; height: 100%; object-fit: cover; }
+        .btn-del { position: absolute; top: 12px; right: 12px; color: #ff4c4c; border: none; background: none; font-size: 1.2rem; cursor: pointer; opacity: 0.4; transition: 0.3s; }
+        .btn-del:hover { opacity: 1; }
+        .dynamic-set-row { display: flex; align-items: center; margin-bottom: 8px; gap: 10px; }
+        
+        #error-log { display: none; background: #ffe6e6; color: #cc0000; padding: 10px; border-radius: 8px; font-size: 0.75rem; margin-bottom: 15px; word-break: break-all; }
+    </style>
+</head>
+<body>
+
+<div class="app-wrapper">
+    <div class="header">
+        <h1>WISH <span>// 系統中樞</span></h1>
+        <div id="sync-status" style="font-size: 0.6rem; color: var(--text-mute);">資料校驗中...</div>
+    </div>
+
+    <div id="view-list" class="view-container active">
+        <div id="error-log"></div>
+        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 10px;">
+            <input type="text" id="live-filter" placeholder="🔍 快速搜尋商品或標籤..." oninput="renderAll()" style="flex: 1; padding: 10px 15px; border-radius: 25px; border: 1px solid var(--border-light); outline: none; font-size: 0.85rem; background: var(--card-bg);">
+            <button onclick="addItem()" class="nav-btn" style="height:auto; color:var(--accent); width: 60px; font-size:0.75rem;">[ + 新增 ]</button>
+        </div>
+        <div id="items-content"></div>
+    </div>
+
+    <div id="view-settings" class="view-container">
+        <div class="settings-sec">
+            <div class="settings-title">通路清單 (CHANNELS) <button onclick="addSetting('channel')">＋</button></div>
+            <div id="set-channel" class="dynamic-set"></div>
+        </div>
+        <div class="settings-sec">
+            <div class="settings-title">類別清單 (CATEGORIES) <button onclick="addSetting('category')">＋</button></div>
+            <div id="set-category" class="dynamic-set"></div>
+        </div>
+        <div class="settings-sec">
+            <div class="settings-title">標籤清單 (TAGS) <button onclick="addSetting('tag')">＋</button></div>
+            <div id="set-tag" class="dynamic-set"></div>
+        </div>
+    </div>
+
+    <div class="nav-bar">
+        <button class="nav-btn active" onclick="switchView('list', this)"><span>📋</span>LIST</button>
+        <button class="nav-btn" onclick="switchView('settings', this)"><span>⚙️</span>SETTINGS</button>
+    </div>
+</div>
+
+    <script>
+        // 已為您綁定正確的後端金鑰位址
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbzROet4UTAJObzKPY42gqjPl_9mVP8DX2fRedBSFzHB5e4eY-_t4MwGUtpIVtJwk1aj/exec";
+        
+        let wishlistData = [];
+        let settingsData = []; 
+        let saveTimeout;
+
+        function showError(msg) {
+            const log = document.getElementById('error-log');
+            log.style.display = 'block';
+            log.textContent = "系統異常報告: " + msg;
+            document.getElementById('sync-status').textContent = "讀取失敗 (エラー)"; 
+        }
+
+        async function loadData() {
+            document.getElementById('sync-status').textContent = "正在同步遠端伺服器 (通信中)...";
+            document.getElementById('error-log').style.display = 'none';
+            try {
+                const response = await fetch(GAS_URL);
+                const res = await response.json();
+                
+                // 攔截並印出 GAS 後端丟出的精確錯誤
+                if (res.error) {
+                    showError(res.error);
+                    return;
+                }
+                
+                wishlistData = res.wishlist || [];
+                settingsData = res.settings || [];
+                renderAll();
+                renderSettings();
+                document.getElementById('sync-status').textContent = "雲端同步完成";
+            } catch (e) { 
+                showError(e.toString() + " (請確認 Apps Script 是否已重新發布新バージョン)");
+            }
+        }
+
+        async function saveData(type = 'sync') {
+            document.getElementById('sync-status').textContent = "正在封裝保存 (保存中)...";
+            const payload = { 
+                action: type, 
+                data: type === 'sync' ? wishlistData : settingsData 
+            };
+            try {
+                const response = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
+                const res = await response.json();
+                if (res.error) throw new Error(res.error);
+                document.getElementById('sync-status').textContent = "雲端已更新";
+            } catch (e) {
+                document.getElementById('sync-status').textContent = "保存失敗";
+                showError(e.toString());
+            }
+        }
+
+        function switchView(view, btn) {
+            document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('view-' + view).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        function renderSettings() {
+            ['channel', 'category', 'tag'].forEach(type => {
+                const container = document.getElementById('set-' + type);
+                container.innerHTML = '';
+                settingsData.filter(s => s.type === type).forEach(s => {
+                    const input = document.createElement('input');
+                    input.className = 'sys-input';
+                    input.value = s.value;
+                    input.style.flexGrow = '1';
+                    input.onchange = (e) => { s.value = e.target.value; saveData('syncSettings'); renderAll(); };
+                    
+                    const del = document.createElement('button');
+                    del.textContent = '×';
+                    del.style.cssText = "background:transparent; border:none; color:#ff4c4c; font-size:1.2rem; padding:0 10px; cursor:pointer;";
+                    del.onclick = () => { settingsData = settingsData.filter(x => x !== s); saveData('syncSettings'); renderSettings(); renderAll(); };
+                    
+                    const div = document.createElement('div');
+                    div.className = 'dynamic-set-row';
+                    div.appendChild(input); div.appendChild(del);
+                    container.appendChild(div);
+                });
+            });
+        }
+
+        function addSetting(type) {
+            settingsData.push({ type, value: '新選項' });
+            renderSettings();
+            saveData('syncSettings');
+        }
+
+        function addItem() {
+            wishlistData.unshift({ id: Math.random().toString(36).substr(2,9), name: '', channel: '', category: '', tags: '', address: '', desc: '', note: '', price: '', currency: 'JPY', isBought: false, image: '' });
+            renderAll();
+            saveData();
+            document.getElementById('view-list').scrollTo(0, 0);
+        }
+
+        function renderAll() {
+            const container = document.getElementById('items-content');
+            const filter = document.getElementById('live-filter').value.toLowerCase();
+            container.innerHTML = '';
+
+            wishlistData.filter(item => 
+                (item.name || '').toLowerCase().includes(filter) || 
+                (item.tags || '').toLowerCase().includes(filter) ||
+                (item.category || '').toLowerCase().includes(filter) ||
+                (item.channel || '').toLowerCase().includes(filter)
+            ).forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'item-card';
+                if(item.isBought) card.style.opacity = '0.5';
+                
+                const catOptions = settingsData.filter(s => s.type === 'category').map(s => `<option value="${s.value}" ${item.category === s.value ? 'selected' : ''}>${s.value}</option>`).join('');
+                const channelOptions = settingsData.filter(s => s.type === 'channel').map(s => `<option value="${s.value}" ${item.channel === s.value ? 'selected' : ''}>${s.value}</option>`).join('');
+                
+                const itemTags = (item.tags || '').split(',').filter(t => t);
+                const tagSelector = settingsData.filter(s => s.type === 'tag').map(s => `
+                    <span class="tag-pill ${itemTags.includes(s.value) ? 'selected' : ''}" onclick="toggleTag('${item.id}', '${s.value}')">${s.value}</span>
+                `).join('');
+
+                card.innerHTML = `
+                    <button class="btn-del" onclick="deleteItem('${item.id}')">×</button>
+                    <div style="display:flex; gap:12px;">
+                        <div class="img-box" onclick="triggerImg('${item.id}')" id="img-${item.id}">
+                            ${item.image ? `<img src="${item.image}">` : '📸<br>画像'}
+                        </div>
+                        <div style="flex-grow:1;">
+                            <input type="text" class="sys-input title-input" value="${item.name}" placeholder="商品名稱 (商品名)" onchange="updateItem('${item.id}', 'name', this.value)">
+                            <div style="display:flex; gap:8px; margin-top:8px;">
+                                <select class="sys-select" onchange="updateItem('${item.id}', 'category', this.value)"><option value="">[ 選擇類別 ]</option>${catOptions}</select>
+                                <select class="sys-select" onchange="updateItem('${item.id}', 'channel', this.value)"><option value="">[ 選擇通路 ]</option>${channelOptions}</select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${settingsData.filter(s => s.type === 'tag').length > 0 ? `<div style="margin-top:8px;">${tagSelector}</div>` : ''}
+                    
+                    <div style="display:flex; gap:10px; margin-top:5px; align-items:center;">
+                        <input type="number" class="sys-input" value="${item.price}" placeholder="價格 (価格)" onchange="updateItem('${item.id}', 'price', this.value)" style="flex:2;">
+                        <select class="sys-select" onchange="updateItem('${item.id}', 'currency', this.value)" style="flex:1;"><option value="JPY" ${item.currency==='JPY'?'selected':''}>JPY</option><option value="TWD" ${item.currency==='TWD'?'selected':''}>TWD</option></select>
+                        <button onclick="toggleBought('${item.id}')" style="flex:1; border:1px solid ${item.isBought?'#B89F9F':'var(--accent)'}; background:${item.isBought?'transparent':'var(--accent)'}; color:${item.isBought?'#B89F9F':'#fff'}; border-radius:20px; padding:4px 0; font-size:0.75rem; cursor:pointer;">${item.isBought?'已購入':'未購入'}</button>
+                    </div>
+                    <input type="text" class="sys-input" style="font-size:0.75rem; border-bottom:1px dashed var(--border-light);" value="${item.note}" placeholder="備註 (メモ)..." onchange="updateItem('${item.id}', 'note', this.value)">
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function updateItem(id, field, val) {
+            const item = wishlistData.find(i => i.id === id);
+            if(item) { item[field] = val; clearTimeout(saveTimeout); saveTimeout = setTimeout(() => saveData(), 1500); }
+        }
+
+        function toggleBought(id) {
+            const item = wishlistData.find(i => i.id === id);
+            if(item) { item.isBought = !item.isBought; renderAll(); saveData(); }
+        }
+
+        function toggleTag(id, tag) {
+            const item = wishlistData.find(i => i.id === id);
+            let tags = (item.tags || '').split(',').filter(t => t);
+            if(tags.includes(tag)) tags = tags.filter(t => t !== tag);
+            else tags.push(tag);
+            item.tags = tags.join(',');
+            renderAll();
+            saveData();
+        }
+
+        function deleteItem(id) { if(confirm('確定刪除此項目？ (削除しますか？)')) { wishlistData = wishlistData.filter(i => i.id !== id); renderAll(); saveData(); } }
+
+        function triggerImg(id) {
+            const input = document.createElement('input');
+            input.type = 'file'; input.accept = 'image/*';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if(!file) return;
+                const reader = new FileReader();
+                reader.onload = (re) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        const MAX_WIDTH = 300;
+                        const scale = MAX_WIDTH / img.width;
+                        canvas.width = MAX_WIDTH; canvas.height = img.height * scale;
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        const base64 = canvas.toDataURL('image/jpeg', 0.6);
+                        wishlistData.find(i => i.id === id).image = base64;
+                        renderAll(); saveData();
+                    };
+                    img.src = re.target.result;
+                };
+                reader.readAsDataURL(file);
+            };
+            input.click();
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
